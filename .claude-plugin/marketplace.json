@@ -1,0 +1,12 @@
+{
+  "name": "native-development-skills",
+  "owner": { "name": "Julius Olsson" },
+  "description": "Development process skills for Claude Code: conventions, plans, debugging, staged decomposition and PR review with reviewer subagents",
+  "plugins": [
+    {
+      "name": "native-dev",
+      "source": "./",
+      "description": "Development conventions plus writing-plans, debugging, staged-decomposition and pr-review, with a pr-reviewer subagent"
+    }
+  ]
+}
