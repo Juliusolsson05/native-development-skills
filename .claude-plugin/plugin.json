@@ -1,0 +1,8 @@
+{
+  "name": "native-dev",
+  "description": "Development conventions plus writing-plans, debugging, staged-decomposition and pr-review, with a pr-reviewer subagent",
+  "author": { "name": "Julius Olsson" },
+  "homepage": "https://github.com/Juliusolsson05/native-development-skills",
+  "repository": "https://github.com/Juliusolsson05/native-development-skills",
+  "license": "MIT"
+}
