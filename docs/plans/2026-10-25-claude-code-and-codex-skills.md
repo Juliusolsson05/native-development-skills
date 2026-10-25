@@ -7,8 +7,8 @@ Status: approved 2026-10-25 (Julius: "give it a go and set up the repo and just 
 ## Outcome
 A colleague who uses plain Claude Code adds this repo as a plugin marketplace,
 installs one plugin, and gets the development conventions plus `writing-plans`,
-`debugging`, `staged-decomposition` and `pr-review`, with two reviewer subagents
-that `pr-review` launches natively. A colleague who uses Codex gets the same
+`debugging`, `staged-decomposition` and `pr-review`, with a reviewer subagent
+that `pr-review` launches twice in parallel. A colleague who uses Codex gets the same
 skills in `~/.agents/skills` and the reviewers as Codex custom agents. No file
 refers to Agent Code or its tools.
 
@@ -67,9 +67,13 @@ refers to Agent Code or its tools.
   - Claude Code: two `pr-reviewer` subagent calls in **one message** (parallel),
     each prompt a one-line pointer to its brief file; each in an isolated git
     worktree so mutation testing never touches the author's tree.
-  - Codex: ask explicitly to "spawn two pr-reviewer agents, wait for both"; the
-    parent session runs with a read-only sandbox for the review round, because a
-    Codex agent file cannot enforce read-only.
+  - Codex: ask explicitly to "spawn two pr-reviewer agents, wait for both".
+    The session stays in its usual `workspace-write` sandbox, because reviewers
+    must write to mutate. `.git` is protected there, so the author creates and
+    removes the review worktrees (approving the git write) and reviewers undo
+    mutations by editing, not with git. Nothing enforces "only your worktree"
+    beyond the brief — stated in the skill. (Revised after review; the draft
+    said "read-only sandbox", which would have made mutation impossible.)
   - A second provider as reviewer is optional (e.g. `codex exec` from Claude
     Code), never required.
 - `agents/pr-reviewer.md` — Claude Code subagent: reviewer role, required
@@ -138,3 +142,40 @@ steps.
 - Native autonomous-loops skill → follow-up issue.
 - Changing agent-skills (it stays the Agent Code-flavoured home).
 - `/simple-code`, `/no-overengineering` (decision 6).
+
+## Execution notes
+- 2026-10-25: plan cff284b; copies cb894df; conventions 778478c; pr-review +
+  agents 870af63; manifests 82142fa; README aa64ca8. `claude plugin validate .`
+  passes (warnings: no version — deliberate, falls back to the commit SHA; no
+  icon). Clean-config install from the local path lists 5 skills + `pr-reviewer`.
+  `npx skills add <path> -g -a codex` into a temp HOME wrote all five to
+  `~/.agents/skills`.
+- 2026-10-25: pr-review dogfooded on this branch: headless `claude -p
+  --plugin-dir .` launched two `native-dev:pr-reviewer` subagents in one
+  message. Both ran in their own `.claude/worktrees/agent-*` worktree starting
+  at main and checked out the head SHA as instructed (plugin `isolation:
+  worktree` works). Both worktrees and their `worktree-agent-*` branches were
+  left behind although clean → cleanup step added to the skill.
+
+## Review (2026-10-25, one round)
+| Finding | Verdict | Disposition |
+|---|---|---|
+| Codex: git-ignored folder doesn't make it writable; `.git` is protected under workspace-write, so worktree add / checkout / remove fail or need approval | valid | fixed: author creates/removes worktrees with approval, reviewers revert by editing |
+| Codex → `claude -p` needs network and `~/.claude` writes, fails inside the sandbox | valid | fixed: documented as needing escalation, read-only |
+| Claude Code → `codex exec` uses a worktree nobody created; read-only reviewer still told to mutate | valid | fixed: create-worktree step, drop mutation from read-only briefs |
+| Plan says Codex review runs read-only; skill doesn't | valid | fixed: plan Design revised |
+| "Briefs differ only in focus area" contradicts per-reviewer setup | valid | fixed |
+| Conventions wrapper reworded / delegation rule narrowed to subagents | overstated (wrapper was planned) | delegation rule widened back; README says there's a wrapper |
+| "Name the model" missing for Codex; "Replaces superpowers" dropped | valid | fixed |
+| README `@`-import only for npx installs | valid | plugin path added (marketplace clone path, not verified for GitHub installs) |
+| Plugin worktrees may not auto-clean | valid, confirmed by the run | fixed: cleanup step + red flag; `.claude/worktrees/` ignored |
+| Agent TOML accepts `sandbox_mode` | wrong | declined: official docs say it doesn't override the parent |
+
+## Plan vs built
+| Section | Status | Note |
+|---|---|---|
+| Outcome | MATCH | |
+| Decisions 1–8 | MATCH | 6 stays UNCONFIRMED |
+| Design: conventions, copies, pr-review, agents, manifests, README | MATCH | Codex bullet revised after review (see Review) |
+| Tests / Verification | MATCH | Codex end-to-end spawn not run (boundary) |
+| Out of scope | MATCH | loops follow-up is #2 |

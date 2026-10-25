@@ -12,8 +12,8 @@ They are defaults. Explicit instructions in the current conversation and
 more-specific repository-local instructions (`CLAUDE.md`, `AGENTS.md`, a
 repo's contributing guide) take precedence when they conflict.
 
-When delegating development work to a subagent, carry these conventions into
-its brief and review the result against them.
+When delegating development work (to a subagent or another agent CLI), carry
+these conventions into the delegated task and review the result against them.
 
 The process skills in this collection put them into practice:
 `writing-plans` (plans and PRs), `debugging` (bugs), `staged-decomposition`

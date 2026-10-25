@@ -1,6 +1,6 @@
 ---
 name: pr-review
-description: "Use when a PR or branch is built and needs review before merge, and whenever the user says review this, review and merge, get two agents to review this, or is this ready to merge; also when receiving review findings from another agent or a pasted review. One round of two independent reviewer subagents, findings triaged against the code, valid ones fixed, merge only on explicit approval."
+description: "Use when a PR or branch is built and needs review before merge, and whenever the user says review this, review and merge, get two agents to review this, or is this ready to merge; also when receiving review findings from another agent or a pasted review. One round of two independent reviewer subagents, findings triaged against the code, valid ones fixed, merge only on explicit approval. Replaces superpowers requesting-code-review and receiving-code-review."
 license: MIT
 ---
 
@@ -20,8 +20,10 @@ to check, not orders. Merge only when the user says so, for that PR.
    isn't there). Use [reference/reviewer-brief.md](reference/reviewer-brief.md).
    It carries the goal, the head SHA and merge-base range, the plan/issue path,
    the non-goals, the non-obvious risk, and the report shape. The two briefs
-   differ only in focus area, and the focus areas don't overlap (e.g.
-   correctness and failure paths / contracts, tests and integration).
+   differ in focus area, and the focus areas don't overlap (e.g.
+   correctness and failure paths / contracts, tests and integration). They
+   also differ where the setup does: a Codex reviewer's brief names its own
+   worktree, and a read-only reviewer's brief drops the mutation technique.
 4. **Launch two reviewers in parallel.** See "Launching reviewers" below for
    Claude Code and Codex. Never review your own PR in your own context instead:
    the point is a reader who didn't write the code.
@@ -59,8 +61,21 @@ its brief, and its final message is the report.
   same one-line prompt; the brief template contains the full reviewer rules.
 
 The temporary worktree starts from the default branch, which is why the brief
-tells the reviewer to `git checkout --detach <sha>` before reading anything,
-and to restore the tree when done so the worktree is cleaned up.
+tells the reviewer to `git checkout --detach <sha>` before reading anything.
+
+**Clean up after reading both reports.** Claude Code removes a subagent's
+worktree only when it sees no changes, and a reviewer that moved HEAD to the
+PR's commit counts as changed: in testing, both review worktrees and their
+`worktree-agent-*` branches were left behind. Remove them yourself:
+
+```bash
+git worktree list                                   # find .claude/worktrees/agent-*
+git worktree remove .claude/worktrees/agent-<id>    # for each reviewer
+git branch -D worktree-agent-<id>
+```
+
+Add `.claude/worktrees/` to the repo's `.gitignore` so leftovers never show up
+in `git status`.
 
 ### Codex
 
@@ -68,27 +83,44 @@ Codex starts subagents only when asked explicitly. Install the reviewer agent
 from `codex/agents/pr-reviewer.toml` in this repo into `~/.codex/agents/` (or
 the project's `.codex/agents/`).
 
-- Create one worktree per reviewer at the head SHA, inside a git-ignored
-  folder so the sandbox allows writes there:
+Know your sandbox first. Under the usual `workspace-write` sandbox, files
+inside the session's working directory are writable but `.git` is protected,
+so **any git command that writes** (`worktree add`, `checkout`, `worktree
+remove`) fails or asks for approval. Subagents inherit the same sandbox, and
+an agent file can't change it.
+
+- Create one worktree per reviewer at the head SHA, somewhere inside the
+  session's working directory, approving the git write when Codex asks (or
+  running it in your own terminal):
   `git worktree add --detach .worktrees/review-<pr>-<focus> <sha>`.
+  Keep `.worktrees/` git-ignored so the worktrees stay out of `git status`.
   Put the worktree path in each brief.
 - Prompt: `Spawn two pr-reviewer agents. Give the first "Read <brief A> and
   follow it." and the second "Read <brief B> and follow it." Wait for both and
-  return both reports in full.`
-- A Codex agent file can't make an agent read-only; subagents inherit your
-  session's sandbox. The brief confines writes to the reviewer's worktree.
-- Remove the review worktrees after reading the reports:
-  `git worktree remove --force .worktrees/review-<pr>-<focus>`.
+  return both reports in full.` Name the model in the prompt or set `model` in
+  the agent file; cheap models argue for defects that aren't there.
+- Reviewers undo each mutation by editing the file back, not with git, because
+  git can't write inside the sandbox. The brief confines their writes to their
+  own worktree; nothing else enforces it.
+- Remove the review worktrees after reading the reports (another git write to
+  approve): `git worktree remove --force .worktrees/review-<pr>-<focus>`.
 
 ### A second provider (optional)
 
-Mixing providers catches different bugs, but it is never required. From Claude
-Code, one reviewer can be Codex:
-`codex exec -s read-only -C <review worktree> -o <report file> "Read <brief> and follow it."`
-From Codex, one can be Claude Code:
-`claude -p "Read <brief> and follow it." > <report file>`, run inside the
-review worktree. A read-only reviewer can't mutate, so give the mutation
-technique to the other reviewer.
+Mixing providers catches different bugs, but it is never required. Either
+way, create the reviewer's worktree first:
+`git worktree add --detach .worktrees/review-<pr>-<focus> <sha>`.
+
+- From Claude Code, one reviewer can be Codex:
+  `codex exec -s read-only -C <review worktree> -o <report file> "Read <brief> and follow it."`
+- From Codex, one can be Claude Code:
+  `claude -p "Read <brief> and follow it." > <report file>`, run inside the
+  review worktree. This needs network access and writes under `~/.claude`, so
+  it only works outside the sandbox: approve the escalation when Codex asks.
+  Without permission flags `claude -p` refuses edits, so treat it as read-only.
+
+A read-only reviewer can't mutate: drop the mutation technique from its brief
+and give it to the other reviewer. Remove the worktree afterwards.
 
 ## Receiving review
 
@@ -150,5 +182,6 @@ to one light pass. Merge still needs their say-so.
 | "Let me get one more review to be safe" | One round. File an issue instead. |
 | "I'll tell the reviewer to ignore X, it's intentional" | Don't steer. Adjudicate after. |
 | "The reviewer can just fix it" | Reviewers never commit. Mutations are reverted. |
+| "The review worktrees clean themselves up" | They didn't in testing. Check `git worktree list` and remove them. |
 | "CI is green and the user approved the last PR" | Approval is per PR. Ask. |
 | "I'll summarize the reviews without reading them fully" | Read every word first. |

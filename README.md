@@ -95,9 +95,13 @@ rules.
 
 Skills load when the agent decides they're relevant. If you'd rather have the
 conventions always in context, import them from your personal instructions
-file. For Claude Code, add a line to `~/.claude/CLAUDE.md` pointing at the
-installed `SKILL.md`, e.g. `@~/.agents/skills/development-conventions/SKILL.md`
-if you also installed with `npx skills`. A repo's own `CLAUDE.md` /
+file. For Claude Code, add an import line to `~/.claude/CLAUDE.md` pointing at
+the installed `SKILL.md`:
+
+- plugin install: `@~/.claude/plugins/marketplaces/native-development-skills/skills/development-conventions/SKILL.md`
+  (the marketplace's local clone, refreshed by `claude plugin marketplace update`)
+- `npx skills` install: `@~/.agents/skills/development-conventions/SKILL.md`
+ A repo's own `CLAUDE.md` /
 `AGENTS.md` still wins where it disagrees.
 
 ## What's deliberately not here
@@ -114,7 +118,8 @@ if you also installed with `npx skills`. A repo's own `CLAUDE.md` /
 from [Juliusolsson05/agent-skills](https://github.com/Juliusolsson05/agent-skills)
 @ `25e206f`, the version for [Agent Code](https://github.com/Juliusolsson05/agent-code)
 users. `pr-review` is rewritten here to use native subagents, and
-`development-conventions` is the conventions text Agent Code otherwise injects.
+`development-conventions` is the conventions text Agent Code otherwise injects,
+with a short wrapper saying when it applies and what takes precedence.
 When agent-skills changes, sync the three copies by hand and update the commit
 above.
 

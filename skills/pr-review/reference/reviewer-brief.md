@@ -20,8 +20,9 @@ fix them.
   other checkout.
 - Never commit, push, open PRs, comment on GitHub, or spawn other agents.
 - You may edit files in your worktree only to mutate the implementation, one
-  mutation at a time, reverting each one. When finished, run
-  `git checkout -- . && git clean -fd` so the worktree is left clean.
+  mutation at a time, reverting each one right after testing it (edit it back;
+  `git checkout -- <file>` also works where git is allowed to write). When
+  finished, confirm `git status --short` is empty.
 
 ## Setup
 Head SHA: <sha>. Base: <base sha or origin/main>.
